@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "mdns/mdns.h"
 #include <stdbool.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/init.h>
@@ -25,7 +26,7 @@ static const struct device *const ieee802154_dev =
     DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
 static struct ieee802154_radio_api *radio_api;
 
-static const char *query = "_zephyr._tcp";
+static const char *query = "zephyr.local";
 
 K_MSGQ_DEFINE(uart_msgq, sizeof(char), 10, 4);
 
@@ -41,10 +42,10 @@ void serial_callback(const struct device *dev, void *user_data) {
   }
 
   while (uart_fifo_read(uart_dev, &c, 1) == 1) {
-    if (c == '1' || c == '2') {
+    if (c == '1' || c == '2' || c == '3') {
       k_msgq_put(&uart_msgq, &c, K_NO_WAIT);
     } else {
-      LOG_DBG("Invalid Input: %u", c);
+      LOG_DBG("Invalid Input: %c", c);
     }
   }
 }
@@ -181,6 +182,9 @@ void main(void) {
       break;
     case '2':
       do_mdns_ipv6_lookup();
+      break;
+    case '3':
+      send_query("_zephyr._tcp");
       break;
     }
   }
