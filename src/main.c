@@ -4,6 +4,7 @@
  */
 
 #include "ap.h"
+#include "apbridge.h"
 #include "mdns.h"
 #include "hdlc.h"
 #include "mcumgr.h"
@@ -28,28 +29,6 @@
 #define CONTROL_SVC_STOP        0x02
 
 LOG_MODULE_REGISTER(cc1352_greybus, CONFIG_BEAGLEPLAY_GREYBUS_LOG_LEVEL);
-
-static void apbridge_entry(void *, void *, void *);
-
-K_THREAD_DEFINE(apbridge, 2048, apbridge_entry, NULL, NULL, NULL, 6, 0, 0);
-
-static void apbridge_entry(void *p1, void *p2, void *p3)
-{
-	ARG_UNUSED(p1);
-	ARG_UNUSED(p2);
-	ARG_UNUSED(p3);
-
-	while (1) {
-		/* Go through all connections */
-		gb_connection_process_all();
-		// k_yield();
-		if (svc_is_ready()) {
-			k_yield();
-		} else {
-			k_msleep(500);
-		}
-	}
-}
 
 static void serial_callback(const struct device *dev, void *user_data)
 {
@@ -131,6 +110,7 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 		svc = svc_init();
 		conn = gb_create_connection(ap, svc, 0, 0);
 		svc_send_version();
+		apbridge_start();
 		return 0;
 	case CONTROL_SVC_STOP:
 		LOG_INF("Stopping SVC");
@@ -138,6 +118,7 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 		node_destroy_all();
 		svc_deinit();
 		ap_deinit();
+		apbridge_stop();
 		return 0;
 	}
 
@@ -168,6 +149,7 @@ void main(void)
 	char query[] = "_greybus._tcp.local\0";
 
 	LOG_INF("Starting BeaglePlay Greybus");
+	apbridge_stop();
 
 	if (!device_is_ready(uart_dev)) {
 		LOG_ERR("UART device not found!");
