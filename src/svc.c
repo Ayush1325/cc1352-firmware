@@ -381,7 +381,8 @@ static void svc_module_removed_response_handler(struct gb_message *msg)
 					LOG_ERR("Failed to find the removed interface");
 				}
 
-				/* I think that AP should destroy any connections left but not sure
+				/*
+				 * I think that AP should destroy any connections left but not sure
 				 */
 				node_destroy_interface(intf);
 				k_mem_slab_free(&svc_module_removed_map, (void **)&item);

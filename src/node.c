@@ -157,12 +157,8 @@ static int read_data(int sock, void *data, size_t len)
 
 	while (received < len) {
 		ret = zsock_recv(sock, received + (char *)data, len - received, 0);
-		if (ret < 0) {
-			LOG_ERR("Failed to receive data");
+		if (ret <= 0) {
 			return ret;
-		} else if (ret == 0) {
-			/* Socket was closed by peer */
-			return 0;
 		}
 		received += ret;
 	}
@@ -213,10 +209,10 @@ early_exit:
 static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 {
 	struct zsock_pollfd fds[AP_MAX_NODES + 1];
-	size_t i, fds_len = 1;
+	size_t i, fds_len;
 	int pipe[2], ret;
 	uint8_t temp;
-	bool flag = false;
+	bool flag;
 	struct gb_message_in_transport msg;
 
 	while (!svc_is_ready()) {
@@ -235,11 +231,14 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 	while (1) {
 		/* Populate fds */
 		fds[0].events = ZSOCK_POLLIN;
+		fds_len = 1;
 		for (i = 0; i < node_cache_pos; ++i) {
-			fds[i + 1].fd = node_cache[i].sock;
-			fds[i + 1].events = ZSOCK_POLLIN;
+			if (node_cache[i].sock >= 0) {
+				fds[fds_len].fd = node_cache[i].sock;
+				fds[fds_len].events = ZSOCK_POLLIN;
+				fds_len++;
+			}
 		}
-		fds_len = node_cache_pos + 1;
 
 		LOG_DBG("Polling for %zu sockets", fds_len - 1);
 		ret = zsock_poll(fds, fds_len, -1);
@@ -255,17 +254,35 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 		}
 
 		for (i = 1; i < fds_len; ++i) {
-			if (fds[i].revents & ZSOCK_POLLIN) {
-				/* Read message */
-				ret = node_cache_find_by_sock(fds[i].fd);
-				if (ret < 0) {
-					LOG_ERR("Failed to find node");
-					continue;
-				}
+			ret = node_cache_find_by_sock(fds[i].fd);
+			if (ret < 0) {
+				LOG_ERR("Failed to find node");
+				continue;
+			}
 
+			if (fds[i].revents & ZSOCK_POLLNVAL) {
+				LOG_WRN("Socket invalid");
+				node_cache[ret].sock = -1;
+				svc_send_module_removed(node_cache[i - 1].id);
+			} else if (fds[i].revents & ZSOCK_POLLHUP) {
+				LOG_WRN("Socket pollhup");
+				zsock_close(fds[i].fd);
+				node_cache[ret].sock = -1;
+				svc_send_module_removed(node_cache[i - 1].id);
+			} else if (fds[i].revents & ZSOCK_POLLERR) {
+				LOG_WRN("Socket error");
+				zsock_close(fds[i].fd);
+				node_cache[ret].sock = -1;
+				svc_send_module_removed(node_cache[i - 1].id);
+			} else if (fds[i].revents & ZSOCK_POLLIN) {
+				LOG_DBG("Socket %d has data", fds[i].fd);
+				/* Read message */
+				flag = false;
 				msg = gb_message_receive(fds[i].fd, &flag);
 				if (flag) {
 					LOG_ERR("Socket closed by peer");
+					zsock_close(fds[i].fd);
+					node_cache[ret].sock = -1;
 					svc_send_module_removed(node_cache[ret].id);
 					continue;
 				}
@@ -285,7 +302,7 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 	}
 }
 
-static int gb_message_send(int sock, const struct gb_message *msg, uint16_t cport)
+static int gb_message_send(int sock, const struct gb_message *msg, uint16_t cport, bool *flag)
 {
 	int ret;
 	uint16_t cport_le = sys_cpu_to_le16(cport);
@@ -311,6 +328,7 @@ static int gb_message_send(int sock, const struct gb_message *msg, uint16_t cpor
 	return 0;
 
 early_exit:
+	*flag = (errno == ECONNRESET) || (errno == EBADF);
 	return ret;
 }
 
@@ -385,7 +403,7 @@ static void node_intf_destroy_connection(struct gb_interface *ctrl, uint16_t cpo
 	struct node_control_data *ctrl_data = ctrl->ctrl_data;
 
 	/* Close socket for cport 0 */
-	if (cport_id == 0) {
+	if (cport_id == 0 && ctrl_data->sock >= 0) {
 		zsock_close(ctrl_data->sock);
 	}
 }
@@ -393,10 +411,16 @@ static void node_intf_destroy_connection(struct gb_interface *ctrl, uint16_t cpo
 static int node_inf_write(struct gb_interface *ctrl, struct gb_message *msg, uint16_t cport_id)
 {
 	int ret;
+	bool closed = false;
 	struct node_control_data *ctrl_data = ctrl->ctrl_data;
 
-	ret = gb_message_send(ctrl_data->sock, msg, cport_id);
+	ret = gb_message_send(ctrl_data->sock, msg, cport_id, &closed);
 	gb_message_dealloc(msg);
+
+	if (closed) {
+		LOG_ERR("Interface %u seems dead", ctrl->id);
+		svc_send_module_removed(ctrl->id);
+	}
 
 	return ret;
 }
