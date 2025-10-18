@@ -16,7 +16,7 @@
 
 LOG_MODULE_DECLARE(cc1352_greybus, CONFIG_BEAGLEPLAY_GREYBUS_LOG_LEVEL);
 
-K_MEM_SLAB_DEFINE_STATIC(gb_interface_slab, sizeof(struct gb_interface), MAX_GREYBUS_INTERFACES, 8);
+K_MEM_SLAB_DEFINE_STATIC(gb_interface_slab, sizeof(struct gb_interface), MAX_GREYBUS_INTERFACES, 4);
 
 static atomic_t interface_id_counter = ATOMIC_INIT(INTERFACE_ID_START);
 

@@ -266,16 +266,7 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 		}
 
 		for (i = 1; i < fds_len; ++i) {
-			if (fds[i].revents & ZSOCK_POLLNVAL) {
-				LOG_WRN("Socket invalid");
-				svc_send_module_removed_by_sock(fds[i].fd);
-			} else if (fds[i].revents & ZSOCK_POLLHUP) {
-				LOG_WRN("Socket pollhup");
-				svc_send_module_removed_by_sock(fds[i].fd);
-			} else if (fds[i].revents & ZSOCK_POLLERR) {
-				LOG_WRN("Socket error");
-				svc_send_module_removed_by_sock(fds[i].fd);
-			} else if (fds[i].revents & ZSOCK_POLLIN) {
+			if (fds[i].revents & ZSOCK_POLLIN) {
 				ret = node_cache_find_by_sock(fds[i].fd);
 				if (ret < 0) {
 					LOG_ERR("Failed to find node");
@@ -300,6 +291,15 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 					LOG_ERR("Failed to send message to AP");
 					continue;
 				}
+			} else if (fds[i].revents & ZSOCK_POLLNVAL) {
+				LOG_WRN("Socket invalid");
+				svc_send_module_removed_by_sock(fds[i].fd);
+			} else if (fds[i].revents & ZSOCK_POLLHUP) {
+				LOG_WRN("Socket pollhup");
+				svc_send_module_removed_by_sock(fds[i].fd);
+			} else if (fds[i].revents & ZSOCK_POLLERR) {
+				LOG_WRN("Socket error");
+				svc_send_module_removed_by_sock(fds[i].fd);
 			}
 		}
 	}
@@ -377,8 +377,8 @@ static int node_intf_create_connection(struct gb_interface *ctrl, uint16_t cport
 		return 0;
 	}
 
-	/* It is possible for cport 0 to be disconnected. Since we are not closing the tcp socket,
-	 * do not recreate an existing socket */
+	/* It is possible for cport 0 to be disconnected. Since we are not closing the tcp
+	 * socket, do not recreate an existing socket */
 	if (ctrl_data->sock >= 0) {
 		return ctrl_data->sock;
 	}
