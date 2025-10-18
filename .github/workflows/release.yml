@@ -1,0 +1,37 @@
+name: Greybus Host Firmware CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        path: cc1352-firmware
+
+    - name: Setup Zephyr project
+      uses: zephyrproject-rtos/action-zephyr-setup@v1
+      with:
+        app-path: cc1352-firmware
+        toolchains: arm-zephyr-eabi
+
+    - name: Build
+      run: |
+        mkdir dist
+        west build -b beagleplay/cc1352p7 cc1352-firmware -p
+        mv build/zephyr/zephyr.bin dist/beagleplay.bin
+        xz -z dist/beagleplay.bin
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: greybus-beagleconnect-freedom
+        path: |
+          dist/*
