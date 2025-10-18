@@ -5,8 +5,8 @@
 
 #include "tcp_discovery.h"
 #include "node.h"
-#include "mdns.h"
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 #define MAX_GREYBUS_NODES CONFIG_BEAGLEPLAY_GREYBUS_MAX_NODES
 
