@@ -5,9 +5,7 @@
  * Modifications Copyright (c) 2023 Ayush Singh <ayushdevel1325@gmail.com>
  */
 
-#include "greybus_messages.h"
 #include "greybus_interfaces.h"
-#include "greybus_protocols.h"
 #include "local_node.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>

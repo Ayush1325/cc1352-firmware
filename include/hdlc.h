@@ -6,9 +6,9 @@
 #ifndef _HDLC_H_
 #define _HDLC_H_
 
-#include "greybus_messages.h"
 #include <stdint.h>
 #include <zephyr/device.h>
+#include <greybus/greybus_messages.h>
 
 #define HDLC_MAX_BLOCK_SIZE CONFIG_BEAGLEPLAY_HDLC_MAX_BLOCK_SIZE
 

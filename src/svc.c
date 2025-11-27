@@ -8,11 +8,9 @@
 #include "local_node.h"
 #include "svc.h"
 #include "ap.h"
-#include "greybus_protocols.h"
-#include "greybus_messages.h"
+#include <greybus/greybus_messages.h>
 #include "node.h"
 #include <zephyr/sys/dlist.h>
-#include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
@@ -57,10 +55,12 @@ static int control_send_request(void *payload, size_t payload_len, uint8_t reque
 	int ret;
 	struct gb_message *msg;
 
-	msg = gb_message_request_alloc(payload, payload_len, request_type, false);
+	msg = gb_message_request_alloc(payload_len, request_type, false);
 	if (msg == NULL) {
 		return -ENOMEM;
 	}
+
+	memcpy(msg->payload, payload, payload_len);
 
 	ret = connection_send(SVC_INF_ID, 0, msg);
 	if (ret < 0) {

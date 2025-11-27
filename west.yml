@@ -17,3 +17,8 @@ manifest:
         name-allowlist:
           - hal_ti
           - cmsis_6
+
+    - name: greybus
+      url: https://github.com/Ayush1325/greybus-for-zephyr.git
+      revision: main
+      path: modules/lib/greybus

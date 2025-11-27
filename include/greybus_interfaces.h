@@ -8,7 +8,7 @@
 
 #include <zephyr/sys/dlist.h>
 #include <zephyr/types.h>
-#include "greybus_messages.h"
+#include <greybus/greybus_messages.h>
 
 struct gb_interface;
 
