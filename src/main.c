@@ -5,7 +5,7 @@
 
 #include "ap.h"
 #include "apbridge.h"
-#include "greybus_protocols.h"
+#include <greybus/greybus_protocols.h>
 #include "hdlc.h"
 #include "node.h"
 #include "svc.h"

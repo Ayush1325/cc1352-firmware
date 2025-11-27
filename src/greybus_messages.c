@@ -3,7 +3,7 @@
  * Copyright (c) 2023 Ayush Singh <ayushdevel1325@gmail.com>
  */
 
-#include "greybus_messages.h"
+#include <greybus/greybus_messages.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -14,7 +14,7 @@ K_HEAP_DEFINE(greybus_messages_heap, CONFIG_BEAGLEPLAY_GREYBUS_MESSAGES_HEAP_MEM
 
 static atomic_t operation_id_counter = ATOMIC_INIT(OPERATION_ID_START);
 
-static uint16_t new_operation_id(void)
+uint16_t new_operation_id(void)
 {
 	atomic_val_t temp = atomic_inc(&operation_id_counter);
 
@@ -49,13 +49,12 @@ void gb_message_dealloc(struct gb_message *msg)
 	k_heap_free(&greybus_messages_heap, msg);
 }
 
-struct gb_message *gb_message_request_alloc(const void *payload, size_t payload_len,
-					    uint8_t request_type, bool is_oneshot)
+struct gb_message *gb_message_request_alloc(size_t payload_len, uint8_t request_type,
+					    bool is_oneshot)
 {
 	uint16_t operation_id = is_oneshot ? 0 : new_operation_id();
 
 	struct gb_message *msg = gb_message_alloc(payload_len, request_type, operation_id, 0);
 
-	memcpy(msg->payload, payload, payload_len);
 	return msg;
 }

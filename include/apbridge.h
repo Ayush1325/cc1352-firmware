@@ -7,7 +7,7 @@
 #define _APBRIDGE_H_
 
 #include <stdint.h>
-#include "greybus_messages.h"
+#include <greybus/greybus_messages.h>
 
 void apbridge_init(void);
 

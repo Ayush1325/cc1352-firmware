@@ -7,7 +7,6 @@
 #define _AP_H_
 
 #include "apbridge.h"
-#include "greybus_messages.h"
 #include "greybus_interfaces.h"
 
 #define AP_MAX_NODES CONFIG_BEAGLEPLAY_GREYBUS_MAX_NODES

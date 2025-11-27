@@ -7,13 +7,13 @@
  */
 
 #include "hdlc.h"
-#include "greybus_protocols.h"
 #include <string.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/crc.h>
 #include <zephyr/sys/ring_buffer.h>
+#include <greybus/greybus_protocols.h>
 
 #define HDLC_RX_BUF_SIZE 1024
 
