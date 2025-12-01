@@ -7,7 +7,7 @@
 #define _NODE_H_
 
 #include <zephyr/net/net_ip.h>
-#include "greybus_interfaces.h"
+#include <greybus/apbridge.h>
 
 #define GB_TRANSPORT_TCPIP_BASE_PORT 4242
 

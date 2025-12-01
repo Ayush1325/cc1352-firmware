@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 #include <zephyr/types.h>
-#include "greybus_interfaces.h"
+#include <greybus/apbridge.h>
 
 #define SVC_INF_ID 0
 

@@ -4,7 +4,6 @@
  */
 
 #include "ap.h"
-#include "apbridge.h"
 #include <greybus/greybus_protocols.h>
 #include "hdlc.h"
 #include "node.h"
@@ -128,8 +127,8 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 		LOG_INF("Starting SVC");
 		ap_init();
 		svc_init();
-		apbridge_init();
-		ret = connection_create(AP_INF_ID, 0, SVC_INF_ID, 0);
+		gb_apbridge_init();
+		ret = gb_apbridge_connection_create(AP_INF_ID, 0, SVC_INF_ID, 0);
 		if (ret < 0) {
 			LOG_ERR("Failed to create connection between AP and SVC");
 			return ret;
@@ -144,7 +143,7 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 		node_destroy_all();
 		svc_deinit();
 		ap_deinit();
-		apbridge_deinit();
+		gb_apbridge_deinit();
 		return 0;
 	}
 

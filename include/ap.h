@@ -6,10 +6,7 @@
 #ifndef _AP_H_
 #define _AP_H_
 
-#include "apbridge.h"
-#include "greybus_interfaces.h"
-
-#define AP_MAX_NODES CONFIG_BEAGLEPLAY_GREYBUS_MAX_NODES
+#include <greybus/apbridge.h>
 
 #define AP_INF_ID       1
 #define AP_SVC_CPORT_ID 0
@@ -39,9 +36,7 @@ void ap_deinit(void);
  */
 static inline int ap_rx_submit(struct gb_message *msg, uint16_t cport_id)
 {
-	return connection_send(AP_INF_ID, cport_id, msg);
+	return gb_apbridge_send(AP_INF_ID, cport_id, msg);
 }
-
-int ap_send(struct gb_message *msg, uint16_t cport);
 
 #endif
