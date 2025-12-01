@@ -5,7 +5,7 @@
  * Modifications Copyright (c) 2023 Ayush Singh <ayushdevel1325@gmail.com>
  */
 
-#include "local_node.h"
+#include "greybus/apbridge.h"
 #include "svc.h"
 #include "ap.h"
 #include <greybus/greybus_messages.h>
@@ -24,14 +24,14 @@ ATOMIC_DEFINE(svc_is_read_flag, 1);
 
 static int svc_inf_write(struct gb_interface *, struct gb_message *, uint16_t);
 
-static int svc_inf_create_connection(struct gb_interface *ctrl, uint16_t cport_id)
+static int svc_inf_create_connection(const struct gb_interface *ctrl, uint16_t cport_id)
 {
 	ARG_UNUSED(ctrl);
 
 	return cport_id == 0 && !svc_is_ready();
 }
 
-static void svc_inf_destroy_connection(struct gb_interface *ctrl, uint16_t cport_id)
+static void svc_inf_destroy_connection(const struct gb_interface *ctrl, uint16_t cport_id)
 {
 	ARG_UNUSED(ctrl);
 
@@ -44,11 +44,13 @@ static void svc_inf_destroy_connection(struct gb_interface *ctrl, uint16_t cport
 	atomic_set_bit_to(svc_is_read_flag, 0, false);
 }
 
-static struct gb_interface intf = {.id = SVC_INF_ID,
-				   .write = svc_inf_write,
-				   .create_connection = svc_inf_create_connection,
-				   .destroy_connection = svc_inf_destroy_connection,
-				   .ctrl_data = NULL};
+static struct gb_interface intf = {
+	.id = SVC_INF_ID,
+	.write = svc_inf_write,
+	.create_connection = svc_inf_create_connection,
+	.destroy_connection = svc_inf_destroy_connection,
+	.ctrl_data = NULL,
+};
 
 static int control_send_request(void *payload, size_t payload_len, uint8_t request_type)
 {
@@ -62,7 +64,7 @@ static int control_send_request(void *payload, size_t payload_len, uint8_t reque
 
 	memcpy(msg->payload, payload, payload_len);
 
-	ret = connection_send(SVC_INF_ID, 0, msg);
+	ret = gb_apbridge_send(SVC_INF_ID, 0, msg);
 	if (ret < 0) {
 		LOG_ERR("Failed to send SVC message");
 		return ret;
@@ -89,7 +91,7 @@ static void svc_response_helper(struct gb_message *msg, const void *payload, siz
 		LOG_ERR("Failed to allocate response for %X", msg->header.type);
 		return;
 	}
-	ret = connection_send(SVC_INF_ID, 0, resp);
+	ret = gb_apbridge_send(SVC_INF_ID, 0, resp);
 	if (ret < 0) {
 		LOG_ERR("Failed to send SVC message");
 	}
@@ -201,7 +203,8 @@ static void svc_connection_create_handler(struct gb_message *msg)
 		goto fail;
 	}
 
-	ret = connection_create(req->intf1_id, req->cport1_id, req->intf2_id, req->cport2_id);
+	ret = gb_apbridge_connection_create(req->intf1_id, req->cport1_id, req->intf2_id,
+					    req->cport2_id);
 	if (ret < 0) {
 		LOG_ERR("Failed to create connection");
 		goto fail;
@@ -225,7 +228,8 @@ static void svc_connection_destroy_handler(struct gb_message *msg)
 
 	LOG_DBG("Destroy connection between Intf %u, Cport %u and Intf %u, Cport %u", req->intf1_id,
 		req->cport1_id, req->intf2_id, req->cport2_id);
-	ret = connection_destroy(req->intf1_id, req->cport1_id, req->intf2_id, req->cport2_id);
+	ret = gb_apbridge_connection_destroy(req->intf1_id, req->cport1_id, req->intf2_id,
+					     req->cport2_id);
 	if (ret < 0) {
 		LOG_ERR("Failed to destroy connection %d between Cport 1: %u of Interface 1: %u "
 			"and Cport 2: %u of Interface 2: %u",
@@ -370,20 +374,13 @@ int svc_send_version(void)
 
 void svc_init(void)
 {
+	gb_interface_add(&intf);
 	atomic_set_bit(svc_is_read_flag, 0);
-}
-
-struct gb_interface *svc_interface(void)
-{
-	if (svc_is_ready()) {
-		return &intf;
-	}
-
-	return NULL;
 }
 
 void svc_deinit(void)
 {
+	gb_interface_remove(intf.id);
 	atomic_set_bit_to(svc_is_read_flag, 0, false);
 }
 

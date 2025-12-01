@@ -285,7 +285,7 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 					continue;
 				}
 
-				ret = connection_send(node_cache[ret].id, msg.cport_id, msg.msg);
+				ret = gb_apbridge_send(node_cache[ret].id, msg.cport_id, msg.msg);
 				if (ret < 0) {
 					LOG_ERR("Failed to send message to AP");
 					continue;
@@ -365,7 +365,7 @@ fail:
 	return ret;
 }
 
-static int node_intf_create_connection(struct gb_interface *ctrl, uint16_t cport_id)
+static int node_intf_create_connection(const struct gb_interface *ctrl, uint16_t cport_id)
 {
 	struct sockaddr_in6 node_addr;
 	struct node_control_data *ctrl_data = ctrl->ctrl_data;
@@ -406,7 +406,7 @@ static int node_intf_create_connection(struct gb_interface *ctrl, uint16_t cport
 	return sock;
 }
 
-static void node_intf_destroy_connection(struct gb_interface *ctrl, uint16_t cport_id)
+static void node_intf_destroy_connection(const struct gb_interface *ctrl, uint16_t cport_id)
 {
 	/* Do Nothing */
 }
