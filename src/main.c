@@ -7,13 +7,13 @@
 #include <greybus/greybus_protocols.h>
 #include "hdlc.h"
 #include "node.h"
-#include "svc.h"
 #include "tcp_discovery.h"
 #include <zephyr/drivers/uart.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_ip.h>
+#include <greybus/svc.h>
 
 #define UART_DEVICE_NODE  DT_CHOSEN(zephyr_shell_uart)
 #define CONTROL_SVC_START 0x01
@@ -126,14 +126,15 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 	case CONTROL_SVC_START: {
 		LOG_INF("Starting SVC");
 		ap_init();
-		svc_init();
+		gb_svc_init();
 		gb_apbridge_init();
 		ret = gb_apbridge_connection_create(AP_INF_ID, 0, SVC_INF_ID, 0);
 		if (ret < 0) {
 			LOG_ERR("Failed to create connection between AP and SVC");
 			return ret;
 		}
-		svc_send_version();
+		gb_svc_send_version();
+		node_rx_start();
 		tcp_discovery_start();
 		return 0;
 	}
@@ -141,7 +142,7 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 		LOG_INF("Stopping SVC");
 		tcp_discovery_stop();
 		node_destroy_all();
-		svc_deinit();
+		gb_svc_deinit();
 		ap_deinit();
 		gb_apbridge_deinit();
 		return 0;

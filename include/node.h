@@ -19,15 +19,6 @@
 void node_destroy_interface(struct gb_interface *intf);
 
 /*
- * Find greybus node by interface ID
- *
- * @param interface id
- *
- * @return greybus interface
- */
-struct gb_interface *node_find_by_id(uint8_t intf_id);
-
-/*
  * Checks if any new nodes have been added or any previous nodes removed.
  *
  * @param list of nodes discovered
@@ -41,5 +32,7 @@ void node_filter(struct in6_addr *active_addr, size_t active_len);
  * Note: This does not destroy the connections
  */
 void node_destroy_all(void);
+
+void node_rx_start(void);
 
 #endif
