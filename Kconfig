@@ -1,24 +1,8 @@
 mainmenu "CC1352 GREYBUS Host Application"
 
-config BEAGLEPLAY_GREYBUS_MAX_NODES
-  int "Maximum number of cports supported by AP"
-  default 1
-
-config BEAGLEPLAY_GREYBUS_MAX_INTERFACES
-  int "Maximum number of interfaces supported by SVC"
-  default 1
-
 config BEAGLEPLAY_HDLC_MAX_BLOCK_SIZE
   int "Maximum hdlc block size supported"
   default 140
-
-config BEAGLEPLAY_GREYBUS_MESSAGES_HEAP_MEM_POOL_SIZE
-	int "Heap for Greybus messages"
-	default 2048
-
-config BEAGLEPLAY_GREYBUS_MAX_CPORTS
-	int "Maximum number of Cports supported by SVC"
-	default 32
 
 config BEAGLEPLAY_GREYBUS_MDNS_DISCOVERY
 	bool "Enable mdns based node discovery"

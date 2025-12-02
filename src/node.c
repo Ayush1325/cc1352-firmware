@@ -5,20 +5,21 @@
 
 #include "node.h"
 #include <greybus/greybus_messages.h>
-#include "svc.h"
 #include <zephyr/net/net_ip.h>
 #include <zephyr/sys/dlist.h>
 #include <assert.h>
 #include <errno.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
-#include "ap.h"
+#include <greybus/svc.h>
 
-#define MAX_GREYBUS_NODES         CONFIG_BEAGLEPLAY_GREYBUS_MAX_NODES
+#define MAX_GREYBUS_NODES         CONFIG_GREYBUS_APBRIDGE_CPORTS
 #define NODE_RX_THREAD_STACK_SIZE 2048
 #define NODE_RX_THREAD_PRIORITY   6
 
 LOG_MODULE_DECLARE(cc1352_greybus, CONFIG_BEAGLEPLAY_GREYBUS_LOG_LEVEL);
+
+K_SEM_DEFINE(node_sem, 0, 1);
 
 struct gb_message_in_transport {
 	uint16_t cport_id;
@@ -50,6 +51,12 @@ K_THREAD_DEFINE(node_rx_thread, NODE_RX_THREAD_STACK_SIZE, node_rx_thread_entry,
 		NODE_RX_THREAD_PRIORITY, 0, 0);
 
 static int local_pipe_writer;
+
+static void tcpip_module_remove(struct gb_interface *inf)
+{
+	gb_svc_send_module_removed(inf->id);
+	node_destroy_interface(inf);
+}
 
 static void pipe_send()
 {
@@ -217,7 +224,7 @@ static void svc_send_module_removed_by_sock(int sock)
 		return;
 	}
 
-	svc_send_module_removed(node_cache[ret].inf);
+	tcpip_module_remove(node_cache[ret].inf);
 }
 
 static void node_rx_thread_entry(void *p1, void *p2, void *p3)
@@ -229,9 +236,7 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 	bool flag = false;
 	struct gb_message_in_transport msg;
 
-	while (!svc_is_ready()) {
-		k_sleep(K_MSEC(500));
-	}
+	k_sem_take(&node_sem, K_FOREVER);
 
 	ret = zsock_socketpair(AF_UNIX, SOCK_STREAM, 0, pipe);
 	if (ret < 0) {
@@ -275,13 +280,13 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 				msg = gb_message_receive(fds[i].fd, &flag);
 				if (flag) {
 					LOG_ERR("Socket closed by peer");
-					svc_send_module_removed(node_cache[ret].inf);
+					tcpip_module_remove(node_cache[ret].inf);
 					continue;
 				}
 
 				if (!msg.msg) {
 					LOG_ERR("Failed to get full message");
-					svc_send_module_removed(node_cache[ret].inf);
+					tcpip_module_remove(node_cache[ret].inf);
 					continue;
 				}
 
@@ -419,7 +424,7 @@ static int node_inf_write(struct gb_interface *ctrl, struct gb_message *msg, uin
 	ret = gb_message_send(ctrl_data->sock, msg, cport_id);
 	if (ret < 0) {
 		LOG_ERR("Socket seems closed");
-		svc_send_module_removed(ctrl);
+		tcpip_module_remove(ctrl);
 	}
 	gb_message_dealloc(msg);
 
@@ -481,13 +486,6 @@ void node_destroy_interface(struct gb_interface *inf)
 	gb_interface_dealloc(inf);
 }
 
-struct gb_interface *node_find_by_id(uint8_t id)
-{
-	int ret = node_cache_find_by_id(id);
-
-	return (ret >= 0) ? node_cache[ret].inf : NULL;
-}
-
 void node_filter(struct in6_addr *active_addr, size_t active_len)
 {
 	size_t i;
@@ -505,7 +503,7 @@ void node_filter(struct in6_addr *active_addr, size_t active_len)
 				LOG_ERR("Failed to create interface");
 				continue;
 			}
-			svc_send_module_inserted(inf->id);
+			gb_svc_send_module_inserted(inf->id, 1, 0);
 		}
 	}
 }
@@ -521,4 +519,9 @@ void node_destroy_all(void)
 	node_cache_pos = 0;
 
 	assert(!k_mem_slab_num_used_get(&node_control_data_slab));
+}
+
+void node_rx_start(void)
+{
+	k_sem_give(&node_sem);
 }
