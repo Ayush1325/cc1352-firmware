@@ -8,8 +8,19 @@ config BEAGLEPLAY_GREYBUS_MDNS_DISCOVERY
 	bool "Enable mdns based node discovery"
 	default y
 
-config BEAGLEPLAY_GREYBUS_NODE1
-	string "Address of Node1"
+config BEAGLEPLAY_GREYBUS_STATIC_NODES_ENABLE
+	bool "Enable nodes with static IP address"
+	help
+	  Allows specifying nodes whose address is known in advance.
+
+if BEAGLEPLAY_GREYBUS_STATIC_NODES_ENABLE
+
+config BEAGLEPLAY_GREYBUS_STATIC_NODES
+	string "Comma seperated list of nodes"
+	help
+	  Allow specifying a list of nodes statically.
+
+endif
 
 module = BEAGLEPLAY_GREYBUS
 module-str = beagleplay_greybus
