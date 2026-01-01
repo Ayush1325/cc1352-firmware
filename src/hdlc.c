@@ -27,13 +27,10 @@
 
 static void hdlc_rx_handler(struct k_work *);
 
-K_THREAD_STACK_DEFINE(hdlc_rx_worqueue_stack, HDLC_RX_WORKQUEUE_STACK_SIZE);
 LOG_MODULE_DECLARE(cc1352_greybus, CONFIG_BEAGLEPLAY_GREYBUS_LOG_LEVEL);
 
 K_WORK_DEFINE(hdlc_rx_work, hdlc_rx_handler);
 RING_BUF_DECLARE(hdlc_rx_ringbuf, HDLC_RX_BUF_SIZE);
-
-static struct k_work_q hdlc_rx_workqueue;
 
 struct hdlc_driver {
 	hdlc_process_frame_callback process_callback_frame_cb;
@@ -185,10 +182,6 @@ int hdlc_block_send_sync(const uint8_t *buffer, size_t buffer_len, uint8_t addre
 
 int hdlc_init(hdlc_process_frame_callback process_cb, hdlc_send_frame_callback send_cb)
 {
-	const struct k_work_queue_config cfg = {
-		.name = "hdlc_rx_workqueue",
-		.no_yield = false,
-	};
 	hdlc_driver.crc = 0xffff;
 	hdlc_driver.send_seq = 0;
 	hdlc_driver.rx_send_seq = 0;
@@ -197,10 +190,6 @@ int hdlc_init(hdlc_process_frame_callback process_cb, hdlc_send_frame_callback s
 
 	hdlc_driver.process_callback_frame_cb = process_cb;
 	hdlc_driver.send_frame_cb = send_cb;
-
-	k_work_queue_init(&hdlc_rx_workqueue);
-	k_work_queue_start(&hdlc_rx_workqueue, hdlc_rx_worqueue_stack, HDLC_RX_WORKQUEUE_STACK_SIZE,
-			   HDLC_RX_WORKQUEUE_PRIORITY, &cfg);
 
 	return 0;
 }
@@ -215,7 +204,7 @@ int hdlc_rx_finish(uint32_t written)
 	int ret;
 
 	ret = ring_buf_put_finish(&hdlc_rx_ringbuf, written);
-	k_work_submit_to_queue(&hdlc_rx_workqueue, &hdlc_rx_work);
+	k_work_submit(&hdlc_rx_work);
 
 	return ret;
 }
