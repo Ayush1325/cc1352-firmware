@@ -24,13 +24,6 @@ struct gb_message_in_transport {
 	struct gb_message *msg;
 };
 
-struct node_control_data {
-	int sock;
-};
-
-K_MEM_SLAB_DEFINE_STATIC(node_control_data_slab, sizeof(struct node_control_data),
-			 MAX_GREYBUS_NODES, 4);
-
 struct node_item {
 	int sock;
 	uint8_t id;
@@ -366,10 +359,9 @@ fail:
 	return ret;
 }
 
-static int node_intf_create_connection(const struct gb_interface *ctrl, uint16_t cport_id)
+static int node_intf_create_connection(struct gb_interface *ctrl, uint16_t cport_id)
 {
 	struct sockaddr_in6 node_addr;
-	struct node_control_data *ctrl_data = ctrl->ctrl_data;
 	int ret, sock;
 
 	/* Do not create socket for cports other than 0 */
@@ -379,8 +371,9 @@ static int node_intf_create_connection(const struct gb_interface *ctrl, uint16_t
 
 	/* It is possible for cport 0 to be disconnected. Since we are not closing the tcp
 	 * socket, do not recreate an existing socket */
-	if (ctrl_data->sock >= 0) {
-		return ctrl_data->sock;
+	sock = POINTER_TO_INT(ctrl->ctrl_data);
+	if (sock >= 0) {
+		return sock;
 	}
 
 	ret = node_cache_find_by_id(ctrl->id);
@@ -400,24 +393,23 @@ static int node_intf_create_connection(const struct gb_interface *ctrl, uint16_t
 		return sock;
 	}
 	node_cache[ret].sock = sock;
-	ctrl_data->sock = sock;
+	ctrl->ctrl_data = INT_TO_POINTER(sock);
 
 	pipe_send();
 
 	return sock;
 }
 
-static void node_intf_destroy_connection(const struct gb_interface *ctrl, uint16_t cport_id)
+static void node_intf_destroy_connection(struct gb_interface *ctrl, uint16_t cport_id)
 {
 	/* Do Nothing */
 }
 
 static int node_inf_write(struct gb_interface *ctrl, struct gb_message *msg, uint16_t cport_id)
 {
-	int ret;
-	struct node_control_data *ctrl_data = ctrl->ctrl_data;
+	int ret, sock = POINTER_TO_INT(ctrl->ctrl_data);
 
-	ret = gb_message_send(ctrl_data->sock, msg, cport_id);
+	ret = gb_message_send(sock, msg, cport_id);
 	if (ret < 0) {
 		LOG_ERR("Socket seems closed");
 		tcpip_module_remove(ctrl);
@@ -430,55 +422,39 @@ static int node_inf_write(struct gb_interface *ctrl, struct gb_message *msg, uin
 static struct gb_interface *node_create_interface(struct in6_addr *addr)
 {
 	int ret;
-	struct node_control_data *ctrl_data;
 	struct gb_interface *inf;
 
-	ret = k_mem_slab_alloc(&node_control_data_slab, (void **)&ctrl_data, K_NO_WAIT);
-	if (ret) {
-		LOG_ERR("Failed to allocate Greybus connection");
-		goto early_exit;
-	}
-
-	ctrl_data->sock = -1;
-
 	inf = gb_interface_alloc(node_inf_write, node_intf_create_connection,
-				 node_intf_destroy_connection, ctrl_data);
+				 node_intf_destroy_connection, INT_TO_POINTER(-1));
 	if (!inf) {
 		LOG_ERR("Failed to allocate Greybus interface");
-		goto free_ctrl_data;
+		return NULL;
 	}
 
 	LOG_DBG("Create new interface with ID %u", inf->id);
 	ret = node_cache_add(-1, inf->id, addr, inf);
 	if (ret < 0) {
 		LOG_ERR("Failed to add node to cache");
-		goto free_ctrl_data;
+		return NULL;
 	}
 
 	return inf;
-
-free_ctrl_data:
-	k_mem_slab_free(&node_control_data_slab, (void **)&ctrl_data);
-early_exit:
-	return NULL;
 }
 
 void node_destroy_interface(struct gb_interface *inf)
 {
-	struct node_control_data *ctrl_data;
+	int sock;
 
 	if (inf == NULL) {
 		return;
 	}
 
-	ctrl_data = inf->ctrl_data;
-
-	if (ctrl_data->sock >= 0) {
-		zsock_close(ctrl_data->sock);
+	sock = POINTER_TO_INT(inf->ctrl_data);
+	if (sock >= 0) {
+		zsock_close(sock);
 	}
 
 	node_cache_remove_by_id(inf->id);
-	k_mem_slab_free(&node_control_data_slab, (void **)&ctrl_data);
 	gb_interface_dealloc(inf);
 }
 
@@ -513,8 +489,6 @@ void node_destroy_all(void)
 	}
 
 	node_cache_pos = 0;
-
-	assert(!k_mem_slab_num_used_get(&node_control_data_slab));
 }
 
 void node_rx_start(void)
