@@ -19,8 +19,6 @@
 
 LOG_MODULE_DECLARE(cc1352_greybus, CONFIG_BEAGLEPLAY_GREYBUS_LOG_LEVEL);
 
-K_SEM_DEFINE(node_sem, 0, 1);
-
 struct gb_message_in_transport {
 	uint16_t cport_id;
 	struct gb_message *msg;
@@ -235,8 +233,6 @@ static void node_rx_thread_entry(void *p1, void *p2, void *p3)
 	uint8_t temp;
 	bool flag = false;
 	struct gb_message_in_transport msg;
-
-	k_sem_take(&node_sem, K_FOREVER);
 
 	ret = zsock_socketpair(AF_UNIX, SOCK_STREAM, 0, pipe);
 	if (ret < 0) {
@@ -523,5 +519,4 @@ void node_destroy_all(void)
 
 void node_rx_start(void)
 {
-	k_sem_give(&node_sem);
 }
