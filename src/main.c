@@ -113,7 +113,6 @@ static int hdlc_process_greybus_frame(const char *buffer, size_t buffer_len)
 static int control_process_frame(const char *buffer, size_t buffer_len)
 {
 	uint8_t command;
-	int ret;
 
 	if (buffer_len != 1) {
 		LOG_ERR("Invalid Buffer");
@@ -126,14 +125,8 @@ static int control_process_frame(const char *buffer, size_t buffer_len)
 	case CONTROL_SVC_START: {
 		LOG_INF("Starting SVC");
 		ap_init();
-		gb_svc_init();
 		gb_apbridge_init();
-		ret = gb_apbridge_connection_create(AP_INF_ID, 0, SVC_INF_ID, 0);
-		if (ret < 0) {
-			LOG_ERR("Failed to create connection between AP and SVC");
-			return ret;
-		}
-		gb_svc_send_version();
+		gb_svc_init();
 		node_rx_start();
 		tcp_discovery_start();
 		return 0;
